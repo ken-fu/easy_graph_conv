@@ -76,6 +76,7 @@ class PlotCanvas(FigureCanvas):
             self.axes.set_xscale('log')
         if self.ylog:
             self.axes.set_yscale('log')
+        self.axes.tick_params(which='minor', labelleft=False)
 
         self.axes.tick_params(direction="in")
 

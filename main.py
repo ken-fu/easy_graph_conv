@@ -214,7 +214,7 @@ class MainWidget(QWidget):
             self.main_graph.ytics_label = False
 
         if self.checkbox_wline_plot.checkState() == Qt.Checked:
-            self.main_graph.line_plot = True
+            self.main_graph.line_plot = False
 
         self.main_graph.normarize = self.checkbox_normarize_plot.checkState() == Qt.Checked
         self.plot_style = self.combobox_plot_style.currentText()
