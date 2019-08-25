@@ -4,6 +4,7 @@ import csv
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import numpy as np
 
 from PyQt5.QtWidgets import QSizePolicy
 
@@ -92,6 +93,15 @@ class PlotCanvas(FigureCanvas):
         for j, _ in enumerate(temp_y_list):
             output_y_list.append(temp_y_list[j] / max_y_data)
         return x_data, output_y_list
+    
+    def normarize_log_data(self, x_data, y_data):
+        '''normarize input data (y_data)'''
+        y_data = np.log10(y_data)
+        max_y_data = max(y_data)
+        output_y_list = []
+        for j, _ in enumerate(y_data):
+            output_y_list.append(10**(y_data[j] / max_y_data))
+        return x_data, output_y_list
 
     def plot(self, plot_style):
         '''plot data. plot_style: PLOTMODE_1 1graph in 1fig 
@@ -104,10 +114,13 @@ class PlotCanvas(FigureCanvas):
             self.fig_init()
             x_list, y_list = self.file_opener(path)
             if self.normarize:
-                x_list, y_list = self.normarize_data(x_list, y_list)
+                if self.ylog:
+                    x_list, y_list = self.normarize_log_data(x_list, y_list)
+                else:
+                    x_list, y_list = self.normarize_data(x_list, y_list)
 
             if self.line_plot:
-                self.axes.plot(x_list, y_list)
+                self.axes.plot(x_list, y_list, linewidth=1)
             else:
                 self.axes.plot(x_list, y_list, linestyle='None', marker='o')
             self.draw()

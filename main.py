@@ -99,6 +99,10 @@ class MainWidget(QWidget):
         self.pbutton_remove_row.move(15, 570)
         self.pbutton_remove_row.clicked.connect(self.remove_row)
 
+        self.pbutton_remove_row = QPushButton('remove all', self)
+        self.pbutton_remove_row.move(15, 590)
+        self.pbutton_remove_row.clicked.connect(self.remove_row_all)
+
         self.label_legend = QLabel('Graph Legend', self)
         self.label_legend.move(235, 30)
 
@@ -200,6 +204,10 @@ class MainWidget(QWidget):
 
     def remove_row(self):
         self.main_listview.removeRow(self.main_listview.currentRow())
+
+    def remove_row_all(self):
+        self.main_listview.clear()
+        self.main_listview.setRowCount(0)
 
     def check_option(self):
         '''check option parameter'''
