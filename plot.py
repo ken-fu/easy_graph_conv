@@ -98,7 +98,6 @@ class PlotCanvas(FigureCanvas):
         '''normarize input data (y_data)'''
         y_data = np.log10(y_data)
         max_y_data = abs(max(y_data))
-        print(max_y_data)
         output_y_list = []
         for j, _ in enumerate(y_data):
             output_y_list.append(10**(y_data[j] / max_y_data))
