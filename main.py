@@ -1,70 +1,17 @@
 # -*- coding: utf-8 -*-
+'''plot tool'''
 import os
 import sys
 
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QAbstractItemView, QTextEdit, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QTextEdit, QComboBox
 from PyQt5.QtWidgets import QLineEdit, QFileDialog, QTableWidget, QTableWidgetItem, QCheckBox
-from PyQt5.Qt import Qt, QDropEvent, QDoubleValidator
+from PyQt5.Qt import Qt, QDoubleValidator
 
-from plot import PlotCanvas
+from plot import PlotGraphCanvas
+from base_func.gui_widget import TableWidgetDragRows
 
 PLOTMODE_1 = '1 graph in 1 figure'
 PLOTMODE_2 = 'all graph in 1 figure'
-
-
-class TableWidgetDragRows(QTableWidget):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.viewport().setAcceptDrops(True)
-        self.setDragDropOverwriteMode(False)
-        self.setDropIndicatorShown(True)
-
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setDragDropMode(QAbstractItemView.InternalMove)
-
-    def dropEvent(self, event: QDropEvent):
-        if not event.isAccepted() and event.source() == self:
-            drop_row = self.drop_on(event)
-
-            rows = sorted(set(item.row() for item in self.selectedItems()))
-            rows_to_move = [[QTableWidgetItem(self.item(row_index, column_index)) for column_index in range(self.columnCount())]
-                            for row_index in rows]
-            for row_index in reversed(rows):
-                self.removeRow(row_index)
-                if row_index < drop_row:
-                    drop_row -= 1
-
-            for row_index, data in enumerate(rows_to_move):
-                row_index += drop_row
-                self.insertRow(row_index)
-                for column_index, column_data in enumerate(data):
-                    self.setItem(row_index, column_index, column_data)
-            event.accept()
-            for row_index in range(len(rows_to_move)):
-                self.item(drop_row + row_index, 0).setSelected(True)
-                self.item(drop_row + row_index, 1).setSelected(True)
-        super().dropEvent(event)
-
-    def drop_on(self, event):
-        index = self.indexAt(event.pos())
-        if not index.isValid():
-            return self.rowCount()
-
-        return index.row() + 1 if self.is_below(event.pos(), index) else index.row()
-
-    def is_below(self, pos, index):
-        rect = self.visualRect(index)
-        margin = 2
-        if pos.y() - rect.top() < margin:
-            return False
-        elif rect.bottom() - pos.y() < margin:
-            return True
-        # noinspection PyTypeChecker
-        return rect.contains(pos, True) and not (int(self.model().flags(index)) & Qt.ItemIsDropEnabled) and pos.y() >= rect.center().y()
 
 
 class MainWidget(QWidget):
@@ -209,61 +156,54 @@ class MainWidget(QWidget):
         self.main_listview.clear()
         self.main_listview.setRowCount(0)
 
-    def check_option(self):
+    def check_option(self, canvas):
         '''check option parameter'''
-        if self.checkbox_xlog.checkState() == Qt.Checked:
-            self.main_graph.xlog = True
-        if self.checkbox_ylog.checkState() == Qt.Checked:
-            self.main_graph.ylog = True
-
-        if self.checkbox_xtick_label.checkState() == Qt.Checked:
-            self.main_graph.xtics_label = False
-        if self.checkbox_ytick_label.checkState() == Qt.Checked:
-            self.main_graph.ytics_label = False
-
-        if self.checkbox_wline_plot.checkState() == Qt.Checked:
-            self.main_graph.line_plot = False
-
-        self.main_graph.normarize = self.checkbox_normarize_plot.checkState() == Qt.Checked
-        self.plot_style = self.combobox_plot_style.currentText()
-
-        self.main_graph.xlabel = self.textbox_xlabel.text()
-        self.main_graph.ylabel = self.textbox_ylabel.text()
-
+        canvas.plot_canvas.tick_params(labelleft=True)
+        if(self.checkbox_xlog.checkState() == Qt.Checked):
+            canvas.plot_canvas.set_xscale('log')
+        if(self.checkbox_ylog.checkState() == Qt.Checked):
+            canvas.plot_canvas.set_yscale('log')
+        if(self.checkbox_xtick_label.checkState() == Qt.Checked):
+            canvas.plot_canvas.tick_params(labelbottom=False)
+        if(self.checkbox_ytick_label.checkState() == Qt.Checked):
+            canvas.plot_canvas.tick_params(labelleft=False)
+        canvas.plot_canvas.set_xlabel(self.textbox_xlabel.text())
+        canvas.plot_canvas.set_ylabel(self.textbox_ylabel.text())
         if self.checkbox_xrange.checkState() == Qt.Checked:
-            self.main_graph.xrange = [
-                self.textbox_xmin.text(), self.textbox_xmax.text()]
+            canvas.plot_canvas.set_xlim(float(self.textbox_xmin.text()), float(self.textbox_xmax.text()))
         if self.checkbox_yrange.checkState() == Qt.Checked:
-            self.main_graph.yrange = [
-                self.textbox_ymin.text(), self.textbox_ymax.text()]
+            canvas.plot_canvas.set_ylim(float(self.textbox_ymin.text()), float(self.textbox_ymax.text()))
 
-        self.main_graph.legend_plot = self.checkbox_legend_plot.checkState() == Qt.Checked
-        self.main_graph.legend_loc = self.combobox_legend_position.currentText()
-        self.temp_legend = self.textedit_legend.toPlainText().split('\n')
-
-        self.legend_unit = self.textbox_legend_unit.text()
-        self.temp_2_legend = []
-        if self.legend_unit:
-            for _ , legend in enumerate(self.temp_legend):
-                print(type(legend))
-                print(type(self.legend_unit))
-                self.temp_2_legend.append(legend + self.legend_unit)
-        else:
-            self.temp_2_legend = self.temp_legend
-        self.main_graph.legend = self.temp_2_legend
+        
 
     def graph_save(self):
         '''graph output .png'''
-        self.path_list = []
+        path_list = []
         for path_item in range(self.main_listview.rowCount()):
-            self.path_list.append(self.main_listview.item(path_item, 1).text())
+            path_list.append(self.main_listview.item(path_item, 1).text())
         directly_name = QFileDialog.getExistingDirectory(self)
-        print(directly_name)
         if len(directly_name) == 0:
             return
-        self.main_graph = PlotCanvas(self.path_list, directly_name)
-        self.check_option()
-        self.main_graph.plot(self.plot_style)
+        self.main_graph = PlotGraphCanvas()
+        self.check_option(self.main_graph)
+
+        normarize = (self.checkbox_normarize_plot.checkState() == Qt.Checked)
+        plot_style = self.combobox_plot_style.currentText()
+        legend_plot = (self.checkbox_legend_plot.checkState() == Qt.Checked)
+        legend_loc = self.combobox_legend_position.currentText()
+        ylog = (self.checkbox_ylog.checkState() == Qt.Checked)
+        line_plot = (self.checkbox_wline_plot.checkState() != Qt.Checked)
+
+        temp_legend = self.textedit_legend.toPlainText().split('\n')
+        legend_unit = self.textbox_legend_unit.text()
+        legend_list = []
+        if legend_unit:
+            for legend in temp_legend:
+                legend_list.append(legend + legend_unit)
+        else:
+            legend_list = temp_legend
+
+        self.main_graph.plot(path_list, directly_name, plot_style, legend_plot, legend_list, legend_loc, line_plot, normarize, ylog)
 
 
 def main():
